@@ -4,7 +4,7 @@ from pylab import*
 clf()
 
 # Choice of example a or b : exact solution
-example = "b"
+example = "a"
 
 if example == "a":
     f  = lambda x: cos(3.*x)
@@ -17,7 +17,7 @@ elif example == "b":
 # Initialization :
 x   = r_[0.:2.*pi + 0.01:0.01]
 
-N   = 8
+N   = 16
 dX  = 2.*pi/N
 X   = r_[0.:2.*pi:dX]
 Y   = f(X)

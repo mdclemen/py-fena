@@ -43,7 +43,6 @@ figure(1); clf()
 loglog(STEPS, LIN_ERR, "o-", mfc = "none", label = "Trapeziodal")
 loglog(STEPS, FULL_ERR, "s-", mfc = "none", label = "Linearized Trapeziodal")
 grid("on")
-#grid minor
 xlabel("N -- Number of Steps", fontsize = 14)
 ylabel("Error", fontsize = 14)
 legend(loc = 0)
