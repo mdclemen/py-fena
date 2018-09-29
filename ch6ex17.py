@@ -1,5 +1,5 @@
-# Example 6.16
-# Two-Dimensional poisson equation
+# Example 6.17
+# Steady heat equation
 from pylab import*
 from mpl_toolkits.mplot3d import Axes3D
 import time, argparse, subprocess
@@ -10,14 +10,15 @@ args, unknown = parser.parse_known_args()
 # Initialization
 clf()
 
-dat = load("ch6ex16_491.npz") # load 37 element mesh from stored data
+dat = load("ch6ex17_1373.npz") # load element mesh from stored data
 nodes = dat["nodes"]
 elements = dat["elements"]
-nin = dat["nin"] # no. of internal nodes
-nex = dat["nex"] # no. of external nodes
-nce = dat["nce"] # no. of nodes on chamfer (with nonzero bcs)
 nn = nodes.shape[0]
 mm, ln = elements.shape # 3 nodes per element
+no = dat["no"] # number of outer boundary nodes
+ni = dat["ni"] # number of inner boundary nodes
+nex = no + ni # no of external/bc nodes
+nin = nn - nex # no of internal/unknown nodes
 if args.useC:
     from ctypes import c_int, c_void_p, CDLL
     try:
@@ -35,7 +36,7 @@ elif args.useOCL:
     krnl_src = open("funcs.cl", "r").read()
     funcs = cl.Program(ctx, krnl_src).build("-I./")
 print("Calculating areas...")
-t0 = time.time()
+t0 = time.time() # start timing
 As = zeros(mm) # store area of each element/cell
 for m in range(mm):
     # each element/cell has coordinates for each node, expressed as i,j,k in the example, so use 0,1,2
@@ -86,44 +87,17 @@ else:
     for i in range(nn):
         for j in range(nn):
             for m in range(mm):
-                if i in elements[m,:] and j in elements[m,:]:
-                    K[i,j] += As[m]*(phis[m,i,0]*phis[m,j,0] + phis[m,i,1]*phis[m,j,1]) # Sum(A*(ami*amj + bmi*bmj))
+                # if i in elements[m,:] and j in elements[m,:]:
+                K[i,j] += As[m]*((phis[m,i,0]*phis[m,j,0]) + (phis[m,i,1]*phis[m,j,1])) # Sum(A*(ami*amj + bmi*bmj))
 t3 = time.time()
 print("Stiffness matrix computation: %.2f mins" % ((t3 - t2)/60.))
-print("Calculating mass matrix M...")
-M = zeros([nn,nn]) # "mass" matrix, 6.98
-if args.useC:
-    makeM(nn, mm, ln, c_void_p(M.ctypes.data), c_void_p(elements.ctypes.data), c_void_p(As.ctypes.data))
-elif args.useOCL:
-    d_M = cl.Buffer(ctx, mf.WRITE_ONLY | mf.COPY_HOST_PTR, hostbuf = M)
-    d_elements = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf = elements)
-    funcs.makeM(queue, (nn,), None, int32(nn), int32(mm), int32(ln), d_M, d_elements, d_As).wait()
-    cl.enqueue_copy(queue, M, d_M)
-else:
-    for i in range(nn):
-        for j in range(nn):
-            val = 0.
-            for m in range(mm):
-                if i in elements[m,:] and j in elements[m,:]:
-                    val += As[m]
-            if i == j:
-                M[i,j] = (1./6.)*val
-            else:
-                M[i,j] = (1./12.)*val
-t4 = time.time()
-print("Mass matrix computation: %.2f mins" % ((t4 - t3)/60.))
-# boundary condition on chamfered section and analytical solution
-bc = lambda x, y: sin(pi*x)*sin(pi*y)
+# q function is 0, so calculation of Mass matrix is not necessary
 
-# q function
-qfun = lambda x, y: -2.*(pi**2)*sin(pi*x)*sin(pi*y)
-q = qfun(nodes[:,0], nodes[:,1])
-
-ui = hstack((zeros(nex - (nn - nce)), bc(nodes[nce::,0], nodes[nce::,1])))
-print("solving for u...")
-u = linalg.solve(-K[0:nin,0:nin], dot(K[0:nin,nin::], ui) + dot(M[0:nin,:], q))
-u = hstack((u, ui))
+ui = hstack((zeros(no), ones(ni)))# outer boundary node bcs, inner boundary node bcs
+print("Solving for u...")
+u = linalg.solve(-K[nex:nn,nex:nn], dot(K[nex:nn,0:nex], ui))
+u = hstack((ui, u))
 tf = time.time()
 print("Solution took: %.2f mins, for %d nodes, %d elements" % ((tf - t0)/60., nn, mm))
 
-np.savez("ch6ex16_soln_%de" % mm, usoln = u)
+np.savez("ch6ex17_soln_%de" % mm, usoln = u)
