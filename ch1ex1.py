@@ -17,8 +17,25 @@ Y = 1./(1. + 25.*np.power(X, 2))
 # Lagrange Interpolation
 pol = lagrange_interp(X, Y, x)
 
+# Using only numpy
+def prod(x, xs, nn, idx):
+    res = 1.
+    for i in range(nn):
+        if i != idx:
+            res *= (x - xs[i])/(xs[idx] - xs[i])
+    return res
+
+n, = X.shape
+m, = x.shape
+yy = zeros(m)
+for i in range(m):
+    for j in range(n):
+        yy[i] += Y[j]*prod(x[i], X, n, j) # Moin eq. 1.2
+
+
 # Generate plots
 plot(x, pol, "k", label = "Lagrange Polynomial")
+plot(x, yy, "k-.", label = "Lagrange Polynomial (2nd method)")
 plot(x, y, "k--", label = "Expected behavior")
 plot(X, Y, "k.", label = "Data Points")
 legend(loc = 0)
